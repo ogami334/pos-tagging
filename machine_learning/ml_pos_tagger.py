@@ -1,9 +1,10 @@
+import json
+from pathlib import Path
 from typing import List
 
 from machine_learning.feature_extractors import FeatureExtractor, extract_features
 from pos_tagging.pos_tagger import PoSTagger
 
-from .data_iterator import convert_feature_ids_list
 from .models import Model
 from .vocabulary import Vocabulary
 
@@ -24,7 +25,21 @@ class MLPoSTagger(PoSTagger):
     def tag_words(self, words: List[str]) -> List[str]:
         features_list = extract_features(words, self.feature_extractors)
         feature_ids_list = [self.feature_vocabulary.get_indices_from_tokens(features) for features in features_list]
-        batch_features = convert_feature_ids_list(feature_ids_list)
-        predictions = self.model.batch_predict(batch_features)
+        predictions = self.model.predict(feature_ids_list)
         predicted_tags = self.tag_vocabulary.get_tokens_from_indices(predictions)
         return predicted_tags
+
+    @classmethod
+    def load(cls, result_save_directory: str) -> "MLPoSTagger":
+        result_save_directory = Path(result_save_directory)
+        config = json.load(open(result_save_directory / "config.json", "r"))
+        feature_vocabulary = Vocabulary.load(result_save_directory / "feature_vocabulary.txt")
+        tag_vocabulary = Vocabulary.load(result_save_directory / "tag_vocabulary.txt")
+        model = Model.by_name(config["model"]["type"]).load(result_save_directory)
+        model.load(result_save_directory)
+        return MLPoSTagger(
+            feature_extractors=[FeatureExtractor.from_config(c) for c in config["feature_extractors"]],
+            feature_vocabulary=feature_vocabulary,
+            tag_vocabulary=tag_vocabulary,
+            model=model,
+        )

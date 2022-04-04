@@ -1,54 +1,43 @@
 import logging
 from typing import Dict, List
 
-import numpy as np
 import tqdm
 
 from machine_learning.utils.registrable import FromConfig
 
-from .data_iterator import DataIterator
 from .models import Model
 
 logger = logging.getLogger(__name__)
 
 
 class Trainer(FromConfig):
-    def __init__(self, batch_size: int, num_epochs: int, patience: int):
-        self.batch_size = batch_size
+    def __init__(self, num_epochs: int, patience: int):
         self.num_epochs = num_epochs
         self.patience = patience
 
-    def _training_loop(
-        self, model: Model, training_instances: List[Dict[str, np.ndarray]], data_iterator: DataIterator
-    ) -> float:
+    def _training_loop(self, model: Model, training_data: List[Dict]) -> float:
         total_num_correct_predictions = 0
-        for batch in tqdm.tqdm(
-            data_iterator.batch_iterate(training_instances, batch_size=self.batch_size, shuffle=True)
-        ):
-            output_dict = model.update(batch["feature_ids"], batch["tag_ids"])
-            total_num_correct_predictions += (output_dict["prediction"] == batch["tag_ids"]).sum()
-        training_accuracy = total_num_correct_predictions / len(training_instances)
+        num_prediction_points = sum(len(d["tag_ids"]) for d in training_data)
+        for data in tqdm.tqdm(training_data):
+            output_dict = model.update(data["feature_ids"], data["tag_ids"])
+            total_num_correct_predictions += sum(i == j for i, j in zip(output_dict["prediction"], data["tag_ids"]))
+        training_accuracy = total_num_correct_predictions / num_prediction_points
         return training_accuracy
 
-    def _validation_loop(
-        self, model: Model, validation_instances: List[Dict[str, np.ndarray]], data_iterator: DataIterator
-    ) -> float:
+    def _validation_loop(self, model: Model, validation_data: List[Dict]) -> float:
         num_correct_predictions = 0
-        for batch in tqdm.tqdm(
-            data_iterator.batch_iterate(validation_instances, batch_size=self.batch_size, shuffle=False)
-        ):
-            model_prediction = model.batch_predict(batch["feature_ids"])
-
-            num_correct_predictions += (model_prediction == batch["tag_ids"]).sum()
-        validation_accuracy = num_correct_predictions / len(validation_instances)
+        num_prediction_points = sum(len(d["tag_ids"]) for d in validation_data)
+        for data in tqdm.tqdm(validation_data):
+            model_prediction = model.predict(data["feature_ids"])
+            num_correct_predictions += sum(i == j for i, j in zip(model_prediction, data["tag_ids"]))
+        validation_accuracy = num_correct_predictions / num_prediction_points
         return validation_accuracy
 
     def train(
         self,
         model: Model,
-        training_instances: List[Dict[str, np.ndarray]],
-        validation_instances: List[Dict[str, np.ndarray]],
-        data_iterator: DataIterator,
+        training_data: List[Dict],
+        validation_data: List[Dict],
         result_save_directory: str,
     ) -> Dict:
 
@@ -59,11 +48,11 @@ class Trainer(FromConfig):
             logger.info(f"Epoch {epoch}")
 
             logger.info(f"Training loop")
-            training_accuracy = self._training_loop(model, training_instances, data_iterator)
+            training_accuracy = self._training_loop(model, training_data)
             logger.info(f"Training accuracy: {training_accuracy}")
 
             logger.info(f"Validation")
-            validation_accuracy = self._validation_loop(model, validation_instances, data_iterator)
+            validation_accuracy = self._validation_loop(model, validation_data)
             logger.info(f"Validation accuracy: {validation_accuracy}")
 
             if best_validation_accuracy < validation_accuracy:

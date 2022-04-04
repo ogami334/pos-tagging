@@ -1,9 +1,9 @@
-from typing import List
+from typing import List, Optional
 
 from .feature_extractor import FeatureExtractor
 
 
 @FeatureExtractor.register("is_digit")
 class IsDigitExtractor(FeatureExtractor):
-    def get_features(self, words: List[str]) -> List[str]:
-        return [f"DIGIT:{w.isdigit()}" for w in words]
+    def get_features(self, words: List[str]) -> List[Optional[str]]:
+        return [f"IS_DIGIT" if w.isdigit() else None for w in words]

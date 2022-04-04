@@ -28,6 +28,9 @@ class Vocabulary:
     def __len__(self):
         return len(self._index2token)
 
+    def has_token(self, token: str) -> bool:
+        return token in self._token2index
+
     def get_index_from_token(self, token: str) -> int:
         if token not in self._token2index:
             if self.use_unknown:

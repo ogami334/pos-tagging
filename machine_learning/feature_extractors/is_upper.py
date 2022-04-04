@@ -1,9 +1,9 @@
-from typing import List
+from typing import List, Optional
 
 from .feature_extractor import FeatureExtractor
 
 
 @FeatureExtractor.register("is_upper")
 class IsUpperExtractor(FeatureExtractor):
-    def get_features(self, words: List[str]) -> List[str]:
-        return [f"UPPER:{w.isupper()}" for w in words]
+    def get_features(self, words: List[str]) -> List[Optional[str]]:
+        return [f"IS_UPPER" if w.isupper() else None for w in words]
