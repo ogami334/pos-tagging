@@ -1,10 +1,17 @@
-# Train Baseline Model
+## Train a baseline model
 ```bash
-poetry run train.py configs/baseline.json results/baseline
+# Usage: train.py CONFIG_PATH RESULT_SAVE_DIRECTORY
+poetry run python train.py configs/baseline.json results/baseline
 ```
 
-# Code Formatting
+## Make a submission file
 ```bash
-poetry run black machine_learning pos_tagging tests train.py make_submission_file.py
-poetry run isort machine_learning pos_tagging tests train.py make_submission_file.py
+# Usage: train.py RESULT_SAVE_DIRECTORY
+poetry run python make_submission_file.py results/baseline
+```
+
+## Code Formatting
+```bash
+poetry run black machine_learning pos_tagging tests
+poetry run isort machine_learning pos_tagging tests
 ```
