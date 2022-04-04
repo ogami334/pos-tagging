@@ -2,7 +2,7 @@ from typing import Dict
 
 import numpy as np
 
-from machine_learning.utils.registrable import Registrable
+from pos_tagging.utils.registrable import Registrable
 
 
 class Model(Registrable):

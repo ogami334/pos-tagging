@@ -21,6 +21,6 @@ poetry run python make_submission_file.py results/baseline
 
 ## Code Formatting
 ```bash
-poetry run black machine_learning pos_tagging tests
-poetry run isort machine_learning pos_tagging tests
+poetry run black pos_tagging pos_tagging tests *.py
+poetry run isort pos_tagging pos_tagging tests *.py
 ```

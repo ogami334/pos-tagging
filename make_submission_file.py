@@ -3,9 +3,9 @@ from pathlib import Path
 
 import click
 
-from machine_learning.ml_pos_tagger import MLPoSTagger
-from machine_learning.utils.import_util import import_submodules
+from pos_tagging.pos_tagger import PoSTagger
 from pos_tagging.read_wsj_data import SEPARATOR, parse_word_only_file
+from pos_tagging.utils.import_util import import_submodules
 
 logger = logging.getLogger(__name__)
 fmt = "[%(asctime)s] [%(levelname)s] %(message)s (%(funcName)s@%(filename)s:%(lineno)s)"
@@ -16,10 +16,10 @@ logging.basicConfig(level=logging.INFO, format=fmt)
 @click.argument("result-save-directory", type=click.Path(exists=False))
 @click.argument("input-file-path", type=click.Path(exists=True), default="data/wsj/wsj22-24.txt")
 def make_submission_file(result_save_directory: str, input_file_path: str):
-    import_submodules("machine_learning")
+    import_submodules("pos_tagging")
 
-    logger.info(f"Load MLPoSTagger from {result_save_directory}")
-    pos_tagger = MLPoSTagger.load(result_save_directory)
+    logger.info(f"Load PoSTagger from {result_save_directory}")
+    pos_tagger = PoSTagger.load(result_save_directory)
 
     output_file_name = Path(input_file_path).stem + ".prediction.pos"
     output_file_path = Path(result_save_directory) / output_file_name

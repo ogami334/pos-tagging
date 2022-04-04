@@ -1,9 +1,7 @@
-import sys
 from pathlib import Path
 
 import click
 
-sys.path.append("./")
 from pos_tagging.read_wsj_data import parse_wsj_file
 
 

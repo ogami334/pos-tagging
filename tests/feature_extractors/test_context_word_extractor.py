@@ -1,6 +1,4 @@
-from machine_learning.feature_extractors.context_word_extractor import (
-    ContextWordExtractor,
-)
+from pos_tagging.feature_extractors.context_word_extractor import ContextWordExtractor
 
 
 def test_extract_center_word_features():

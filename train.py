@@ -6,12 +6,12 @@ from typing import Dict, List
 
 import click
 
-from machine_learning.feature_extractors import FeatureExtractor, extract_features
-from machine_learning.models import Model
-from machine_learning.trainer import Trainer
-from machine_learning.utils.import_util import import_submodules
-from machine_learning.vocabulary import Vocabulary
+from pos_tagging.feature_extractors import FeatureExtractor, extract_features
+from pos_tagging.models import Model
 from pos_tagging.read_wsj_data import parse_wsj_file
+from pos_tagging.trainer import Trainer
+from pos_tagging.utils.import_util import import_submodules
+from pos_tagging.vocabulary import Vocabulary
 
 logger = logging.getLogger(__name__)
 fmt = "[%(asctime)s] [%(levelname)s] %(message)s (%(funcName)s@%(filename)s:%(lineno)s)"
@@ -37,7 +37,7 @@ def add_ids_to_data(data_list: List[Dict], feature_vocabulary: Vocabulary, tag_v
 @click.argument("config-path", type=click.Path(exists=True))
 @click.argument("result-save-directory", type=click.Path(exists=False))
 def train_multi_class_perceptron(config_path: str, result_save_directory: str):
-    import_submodules("machine_learning")
+    import_submodules("pos_tagging")
 
     # preparing result_save_directory
     result_save_directory = Path(result_save_directory)

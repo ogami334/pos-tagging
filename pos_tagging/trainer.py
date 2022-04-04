@@ -3,7 +3,7 @@ from typing import Dict, List
 
 import tqdm
 
-from machine_learning.utils.registrable import FromConfig
+from pos_tagging.utils.registrable import FromConfig
 
 from .models import Model
 

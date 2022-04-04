@@ -1,6 +1,6 @@
-from machine_learning.feature_extractors.is_digit import IsDigitExtractor
-from machine_learning.feature_extractors.is_title import IsTitleExtractor
-from machine_learning.feature_extractors.is_upper import IsUpperExtractor
+from pos_tagging.feature_extractors.is_digit import IsDigitExtractor
+from pos_tagging.feature_extractors.is_title import IsTitleExtractor
+from pos_tagging.feature_extractors.is_upper import IsUpperExtractor
 
 
 def test_is_digit_extractor():

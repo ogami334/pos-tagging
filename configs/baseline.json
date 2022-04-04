@@ -3,7 +3,9 @@
         {"type": "context_word", "context_distance": 0},
         {"type": "context_word", "context_distance": 1},
         {"type": "context_word", "context_distance": -1},
-        {"type": "is_title"}
+        {"type": "is_title"},
+        {"type": "is_upper"},
+        {"type": "is_digit"}
     ],
     "feature_vocabulary": {"min_num_tokens": 0},
     "train_data_path": "data/wsj/wsj00-18.pos",
