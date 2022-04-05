@@ -20,7 +20,6 @@ def make_submission_file(result_save_directory: str, input_file_path: str):
 
     logger.info(f"Load PoSTagger from {result_save_directory}")
     pos_tagger = PoSTagger.load(result_save_directory)
-
     output_file_name = Path(input_file_path).stem + ".prediction.pos"
     output_file_path = Path(result_save_directory) / output_file_name
     logger.info(f"Make prediction with {input_file_path}")

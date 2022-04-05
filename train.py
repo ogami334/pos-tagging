@@ -36,7 +36,7 @@ def add_ids_to_data(data_list: List[Dict], feature_vocabulary: Vocabulary, tag_v
 @click.command()
 @click.argument("config-path", type=click.Path(exists=True))
 @click.argument("result-save-directory", type=click.Path(exists=False))
-def train_multi_class_perceptron(config_path: str, result_save_directory: str):
+def train(config_path: str, result_save_directory: str):
     import_submodules("pos_tagging")
 
     # preparing result_save_directory
@@ -87,4 +87,4 @@ def train_multi_class_perceptron(config_path: str, result_save_directory: str):
 
 
 if __name__ == "__main__":
-    train_multi_class_perceptron()
+    train()

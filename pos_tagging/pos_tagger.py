@@ -35,7 +35,6 @@ class PoSTagger:
         feature_vocabulary = Vocabulary.load(result_save_directory / "feature_vocabulary.txt")
         tag_vocabulary = Vocabulary.load(result_save_directory / "tag_vocabulary.txt")
         model = Model.by_name(config["model"]["type"]).load(result_save_directory)
-        model.load(result_save_directory)
         return PoSTagger(
             feature_extractors=[FeatureExtractor.from_config(c) for c in config["feature_extractors"]],
             feature_vocabulary=feature_vocabulary,

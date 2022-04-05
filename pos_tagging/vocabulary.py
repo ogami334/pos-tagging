@@ -11,16 +11,16 @@ class Vocabulary:
     This class handles token ←→ ID mappings.
     """
 
-    def __init__(self, token_set: List[str], use_padding: bool = False, use_unknown: bool = False):
+    def __init__(self, token_set: List[str], add_padding: bool = False, add_unknown: bool = False):
 
-        if use_unknown:
+        if add_unknown:
             token_set = [UNKNOWN_TOKEN] + token_set
 
-        if use_padding:
+        if add_padding:
             token_set = [PADDING_TOKEN] + token_set
 
-        self.use_padding = use_padding
-        self.use_unknown = use_unknown
+        self.use_padding = PADDING_TOKEN in token_set
+        self.use_unknown = UNKNOWN_TOKEN in token_set
 
         self._index2token = token_set
         self._token2index = {t: i for i, t in enumerate(token_set)}
@@ -60,7 +60,7 @@ class Vocabulary:
         tokens_in_vocab = [
             token for token, count in token_counter.most_common(n=max_vocab_size) if count > min_num_tokens
         ]
-        return Vocabulary(tokens_in_vocab, use_padding=use_padding, use_unknown=use_unknown)
+        return Vocabulary(tokens_in_vocab, add_padding=use_padding, add_unknown=use_unknown)
 
     def save(self, save_path: Union[str, Path]):
         with open(save_path, "w") as f:
@@ -71,4 +71,4 @@ class Vocabulary:
         with open(save_path, "r") as f:
             token_set = f.read().strip().split("\n")
 
-        return Vocabulary(token_set, use_padding=PADDING_TOKEN in token_set, use_unknown=UNKNOWN_TOKEN in token_set)
+        return Vocabulary(token_set)
