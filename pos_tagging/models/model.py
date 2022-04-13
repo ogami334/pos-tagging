@@ -1,33 +1,22 @@
-from typing import Dict
-
-import numpy as np
+from typing import Dict, List
 
 from pos_tagging.utils.registrable import Registrable
 
 
 class Model(Registrable):
-    def predict(self, word_features: np.ndarray) -> np.ndarray:
-        """
-        Make prediction given word features of a sentence.
+    def __init__(self, num_features: int, num_classes: int):
+        self._num_features = num_features
+        self.num_classes = num_classes
 
-        Parameters
-        ----------
-        word_features : ``np.array`` (sentence_length, max_feature_length)
-            The features of the words in a sentence.
+    def predict(self, word_features: List[List[int]]) -> List[int]:
         """
-
+        Make prediction given word features of s single sentence.
+        """
         raise NotImplementedError()
 
-    def update(self, word_features: np.ndarray, tags: np.ndarray) -> Dict:
+    def update(self, word_features: List[List[int]], tags: List[int]) -> Dict:
         """
         Update the model parameters using with a single training sentence.
-
-        Parameters
-        ----------
-        word_features : ``np.array`` (batch_size, max_feature_length)
-            The features of the words in a sentence.
-        tags : ``np.array`` (batch_size,)
-            The PoS tags of the words.
         """
         raise NotImplementedError()
 
