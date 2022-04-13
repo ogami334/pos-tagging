@@ -11,7 +11,7 @@ PARAMETER_FILE_NAME = "parameters.npz"
 @Model.register("multi_class_perceptron")
 class MultiClassPerceptron(Model):
     def __init__(self, num_features: int, num_classes: int):
-        self._num_features = num_features
+        super().__init__(num_features, num_classes)
         self.weights = np.zeros((num_features, num_classes))
         self.bias = np.zeros(num_classes)
 
