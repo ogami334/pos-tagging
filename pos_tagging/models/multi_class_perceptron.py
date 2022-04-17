@@ -19,6 +19,7 @@ class MultiClassPerceptron(Model):
         predicted_tags = []
         for fs in word_features:
             scores = self.weights[fs].sum(axis=0) + self.bias
+            # fsに1が立っているindexが入っていて、1の部分の重みを全て足す実装になっている
             predicted_tag = scores.argmax()
             predicted_tags.append(predicted_tag)
         return predicted_tags
