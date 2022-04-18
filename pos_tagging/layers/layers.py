@@ -1,4 +1,6 @@
 import numpy as np
+from .utils import softmax, cross_entropy_error
+# from utils import softmaxだと動かなかった(他のファイルから呼ぶときは相対importしないとダメってこと？)
 #Sigmoid function
 class Sigmoid:
     def __init__(self):
@@ -64,6 +66,7 @@ class Affine:
     def forward(self, x):
         self.x = x
         out = np.dot(x, self.W) + self.b
+        return out
 
     def backward(self, dout):
         dx = np.dot(dout, self.W.T)
