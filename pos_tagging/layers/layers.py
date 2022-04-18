@@ -1,3 +1,4 @@
+import numpy as np
 #Sigmoid function
 class Sigmoid:
     def __init__(self):
@@ -60,7 +61,7 @@ class Affine:
         self.dW = None
         self.db = None
 
-    def forward(self.x):
+    def forward(self, x):
         self.x = x
         out = np.dot(x, self.W) + self.b
 
