@@ -102,7 +102,7 @@ class Neural_Network(Model):
         num_features, hidden_size = parameters['W1'].shape
         num_classes = parameters['b2'].shape[1]
         model = Neural_Network(num_features, num_classes, hidden_size, weight_init_std=0.01)
-        for key in self.layers.keys():
+        for key in self.params.keys():
             self.params[key] = parameters[key]
         return model
     # モデルの変更に伴って書き換える必要あり。
