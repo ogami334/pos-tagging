@@ -32,23 +32,33 @@ class Neural_Network(Model):
 
         #今の感じだと各層の中身と初期パラメータを両方決めなきゃいけないのが辛い。
 
+    def forward(self, x):
+        # xというnp.ndarray(batch_size, num_features)を受け取り、ニューラルネットワークにかけてnp.ndarray(batch_size, num_classes)を返す
+        for key, layer in self.layers.items():
+            x = layer.forward(x)
+        return x
+
+    def transform2d(self, word_features, length, dtype='float64'):
+        x = np.zeros(shape=(len(word_features),length), dtype=dtype)
+        for index,fs in enumerate(word_features):
+            for feature_index in fs:
+                x[index][feature_index] = 1
+        return x
+
     def predict(self, word_features: List[List[int]]) -> List[int]:
-        #順方向の処理(予測に使うのでsoftmaxがいらない)
-        #一層目の処理だけ分けて書くのめんどくさい...
-        predicted_tags = []
-        for fs in word_features:
-            for key, layer in self.layers.items():
-                # if key[:3] == "Aff":
-                #     # logger.debug(f"layer:{key}, shape:{layer.W.shape}") なぜか表示されない
-                #     print(f"layer:{key}, shape:{layer.W.shape}")
-                fs = layer.forward(fs)
-            predicted_tag = fs.argmax()
-            predicted_tags.append(predicted_tag)
-        # 逐次処理してるのでまとめて処理するコードを書きたい
+        # np.arrayを定義する
+        # forward関数でバッチ処理をする
+        # forward関数からnp.arrayを受け取る
+        # それをpredicted_tagsに変換する
+        x = self.transform2d(word_features, self._num_features)
+        y = self.forward(x)
+        predicted_tags = np.argmax(y, axis=1)
+        predicted_tags = predicted_tags.tolist()
+
         return predicted_tags
 
     def loss(self, x, t):
-        y = self.predict(x)
+        y = self.forward(x)
         return self.lastLayer.forward(y, t)
 
     def gradient(self, x, t):
@@ -69,12 +79,16 @@ class Neural_Network(Model):
 
         return grads
 
-    def update(self, word_features: List[List[int]], tags: List[int]) -> Dict:
+    def update(self, word_features: List[List[int]], tags: List[int], learning_rate=0.001) -> Dict:
         predicted_labels = self.predict(word_features)
-        # 間違ったものを抜き出す処理をしていない
-        grad = self.gradient(word_features, predicted_labels)
-        for key in self.layers.keys():
-            self.params[key] -= learning_rate * grad[key]
+        new_tags = []
+        for tag in tags:
+            new_tags.append([tag])
+        x = self.transform2d(word_features, self._num_features)
+        new_tags = self.transform2d(new_tags, self.num_classes, dtype='int32')
+        grads = self.gradient(x, new_tags)
+        for key in grads.keys():
+            self.params[key] -= learning_rate * grads[key]
 
         # 間違った問題について、パラメータを更新する
         return {"prediction": predicted_labels}
@@ -93,3 +107,21 @@ class Neural_Network(Model):
         return model
     # モデルの変更に伴って書き換える必要あり。
     # OrderedDictをうまく使うのが良さそう？
+
+
+    # def predict(self, word_features: List[List[int]]) -> List[int]:
+    #     #順方向の処理(予測に使うのでsoftmaxがいらない)
+    #     predicted_tags = []
+    #     for fs in word_features:
+    #         x = np.zeros(self._num_features)
+    #         for index in fs:
+    #             x[index] = 1
+    #         print(x)
+    #         for key, layer in self.layers.items():
+    #             x = layer.forward(x)
+    #             print(f"after {key}")
+    #             print(x)
+    #         predicted_tag = x.argmax()
+    #         predicted_tags.append(predicted_tag)
+    #     # 逐次処理してるのでまとめて処理するコードを書きたい
+    #     return predicted_tags
