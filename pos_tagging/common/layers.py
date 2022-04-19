@@ -1,5 +1,5 @@
 import numpy as np
-from .utils import softmax, cross_entropy_error
+from utils import softmax, cross_entropy_error
 # from utils import softmaxだと動かなかった(他のファイルから呼ぶときは相対importしないとダメってこと？)
 #Sigmoid function
 class Sigmoid:
@@ -74,3 +74,37 @@ class Affine:
         self.db = np.sum(dout, axis=0)
         return dx
 # backwardを呼ぶと、self.dWとself.dbに勾配が保存される
+
+class Embedding:
+    def __init__(self, W):
+        self.params = [W]
+        self.grads = [np.zeros_like(W)]
+        self.idx = None
+
+    def forward(self, idx):
+        W, = self.params
+        self.idx = idx
+        out = W[idx]
+        return out
+
+    def backward(self, dout):
+        dW, = self.grads
+        dW[...] = 0
+        np.add.at(dW, self.idx, dout)
+        return dW
+#backwardを呼ぶと、dWに勾配が保存される。
+
+
+class SumLine:
+    def __init__(self):
+        self.num_line = None
+    def forward(self, x):
+        self.num_line = x.shape[0]
+        out = np.sum(x, axis=0)
+        # xの行を全て合計した行ベクトルを返す
+        return out
+
+    def backward(self, dout):
+        A = np.ones(shape = (self.num_line, 1), dtype='int32')
+        dh = np.dot(A, dout)
+        return dh
