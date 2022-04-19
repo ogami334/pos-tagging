@@ -5,7 +5,7 @@ from collections import OrderedDict
 import sys
 from .model import Model
 # sys.path.append("../layers")
-from ..layers.layers import Affine,SoftmaxWithLoss, Relu
+from ..common.layers import Affine,SoftmaxWithLoss, Relu
 import logging
 logger = logging.getLogger(__name__)
 
