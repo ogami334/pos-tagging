@@ -12,25 +12,36 @@ logger = logging.getLogger(__name__)
 PARAMETER_FILE_NAME = "parameters.npz"
 # need to be modified
 
+# やること
+# 高速化(流石に遅いので一層目だけ特別扱いする？)
 @Model.register("neural_network")
 class Neural_Network(Model):
-    def __init__(self, num_features: int, num_classes:int, hidden_size:int=30, weight_init_std:float = 0.01):
+    def __init__(self, num_features: int, num_classes:int, hidden_size:int=30, weight_init_std:float = 0.01, learning_rate: float =0.001, num_layers:int =2):
         super().__init__(num_features, num_classes)
+        self.hidden_size = hidden_size
+        self.weight_init_std = weight_init_std
+        self.learning_rate = learning_rate
+        self.num_layers = num_layers
         # 重みパラメータの初期化
         self.params = {}
         self.params['W1'] = weight_init_std * np.random.randn(num_features, hidden_size)
         self.params['b1'] = np.zeros(hidden_size)
-        self.params['W2'] = weight_init_std * np.random.randn(hidden_size, num_classes)
-        self.params['b2'] = np.zeros(num_classes)
+        for i in range(num_layers - 2):
+            self.params['W' + str(i+2)] = weight_init_std * np.random.randn(hidden_size, hidden_size)
+            self.params['b' + str(i+2)] = weight_init_std * np.random.randn(hidden_size)
+        self.params['W' + str(num_layers)] = weight_init_std * np.random.randn(hidden_size, num_classes)
+        self.params['b' + str(num_layers)] = np.zeros(num_classes)
 
         # 各層に何を置くかを決める
         self.layers = OrderedDict()
         self.layers['Affine1'] = Affine(self.params['W1'], self.params['b1'])
-        self.layers['Relu1'] = Relu()
-        self.layers['Affine2'] = Affine(self.params['W2'], self.params['b2'])
+        for i in range(num_layers - 1):
+            self.layers['Relu' + str(i + 1)] = Relu()
+            self.layers['Affine' + str(i + 2)] = Affine(self.params['W' + str(i+2)], self.params['b' + str(i+2)])
         self.lastLayer = SoftmaxWithLoss()
 
-        #今の感じだと各層の中身と初期パラメータを両方決めなきゃいけないのが辛い。
+        # 各層に何を入れるか決めたら自動で初期化して欲しい。。
+        # 各層の名前とself.params上でのパラメータの対応づけを考えたい。
 
     def forward(self, x):
         # xというnp.ndarray(batch_size, num_features)を受け取り、ニューラルネットワークにかけてnp.ndarray(batch_size, num_classes)を返す
@@ -74,12 +85,14 @@ class Neural_Network(Model):
         for layer in layers:
             dout = layer.backward(dout)
         grads = {}
-        grads['W1'], grads['b1'] = self.layers['Affine1'].dW, self.layers['Affine1'].db
-        grads['W2'], grads['b2'] = self.layers['Affine2'].dW, self.layers['Affine2'].db
+        for i in range(self.num_layers):
+            grads['W' + str(i+1)], grads['b' + str(i+1)] = self.layers['Affine' + str(i+1)].dW, self.layers['Affine' + str(i+1)].db
+        # grads['W1'], grads['b1'] = self.layers['Affine1'].dW, self.layers['Affine1'].db
+        # grads['W2'], grads['b2'] = self.layers['Affine2'].dW, self.layers['Affine2'].db
 
         return grads
 
-    def update(self, word_features: List[List[int]], tags: List[int], learning_rate=0.001) -> Dict:
+    def update(self, word_features: List[List[int]], tags: List[int]) -> Dict:
         predicted_labels = self.predict(word_features)
         new_tags = []
         for tag in tags:
@@ -88,13 +101,13 @@ class Neural_Network(Model):
         new_tags = self.transform2d(new_tags, self.num_classes, dtype='int32')
         grads = self.gradient(x, new_tags)
         for key in grads.keys():
-            self.params[key] -= learning_rate * grads[key]
+            self.params[key] -= self.learning_rate * grads[key]
 
-        # 間違った問題について、パラメータを更新する
         return {"prediction": predicted_labels}
 
-    def save(self):
-        np.savez(Path(save_directory)/ PARAMETER_FILE_NAME, W1=self.params['W1'], b1 =self.params['b1'], W2=self.params['W2'], b2=self.params['b2'])
+    def save(self, save_directory:str):
+        np.savez(Path(save_directory)/ PARAMETER_FILE_NAME, **self.params)
+        # np.savez(Path(save_directory)/ PARAMETER_FILE_NAME, W1=self.params['W1'], b1 =self.params['b1'], W2=self.params['W2'], b2=self.params['b2'])
 
     @classmethod
     def load(cls, save_directory):
@@ -107,21 +120,3 @@ class Neural_Network(Model):
         return model
     # モデルの変更に伴って書き換える必要あり。
     # OrderedDictをうまく使うのが良さそう？
-
-
-    # def predict(self, word_features: List[List[int]]) -> List[int]:
-    #     #順方向の処理(予測に使うのでsoftmaxがいらない)
-    #     predicted_tags = []
-    #     for fs in word_features:
-    #         x = np.zeros(self._num_features)
-    #         for index in fs:
-    #             x[index] = 1
-    #         print(x)
-    #         for key, layer in self.layers.items():
-    #             x = layer.forward(x)
-    #             print(f"after {key}")
-    #             print(x)
-    #         predicted_tag = x.argmax()
-    #         predicted_tags.append(predicted_tag)
-    #     # 逐次処理してるのでまとめて処理するコードを書きたい
-    #     return predicted_tags
