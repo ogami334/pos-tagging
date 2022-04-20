@@ -1,7 +1,9 @@
 import numpy as np
-from utils import softmax, cross_entropy_error
+from .utils import softmax, cross_entropy_error
 # from utils import softmaxだと動かなかった(他のファイルから呼ぶときは相対importしないとダメってこと？)
-#Sigmoid function
+
+
+# Sigmoid function
 class Sigmoid:
     def __init__(self):
         self.out = None
@@ -11,11 +13,12 @@ class Sigmoid:
         self.out = out
         return out
 
-    def backward(self,dout):
+    def backward(self, dout):
         dx = dout * (1.0 - self.out) * self.out
         return dx
 
-#Rectified Linear Unit
+
+# Rectified Linear Unit
 class Relu:
     def __init__(self):
         self.mask = None
@@ -32,6 +35,7 @@ class Relu:
         dx = dout
 
         return dx
+
 
 # layers which integrate Softmax func and Cross Entropy Loss
 class SoftmaxWithLoss:
@@ -75,11 +79,13 @@ class Affine:
         return dx
 # backwardを呼ぶと、self.dWとself.dbに勾配が保存される
 
+
 class Embedding:
     def __init__(self, W):
         self.params = [W]
         self.grads = [np.zeros_like(W)]
         self.idx = None
+        self.dW = None
 
     def forward(self, idx):
         W, = self.params
@@ -88,23 +94,24 @@ class Embedding:
         return out
 
     def backward(self, dout):
-        dW, = self.grads
-        dW[...] = 0
-        np.add.at(dW, self.idx, dout)
-        return dW
-#backwardを呼ぶと、dWに勾配が保存される。
+        self.dW, = self.grads
+        self.dW[...] = 0
+        np.add.at(self.dW, self.idx, dout)
+        return self.dW
+# backwardを呼ぶと、dWに勾配が保存される。
 
 
 class SumLine:
     def __init__(self):
         self.num_line = None
+
     def forward(self, x):
-        self.num_line = x.shape[0]
-        out = np.sum(x, axis=0)
+        self.num_line = x.shape[1]
+        out = np.sum(x, axis=1)
         # xの行を全て合計した行ベクトルを返す
         return out
 
     def backward(self, dout):
-        A = np.ones(shape = (self.num_line, 1), dtype='int32')
+        A = np.ones(shape=(self.num_line, 1), dtype='int32')
         dh = np.dot(A, dout)
         return dh
