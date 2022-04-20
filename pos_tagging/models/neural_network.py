@@ -5,7 +5,7 @@ from collections import OrderedDict
 import sys
 from .model import Model
 # sys.path.append("../layers")
-from ..common.layers import Affine,SoftmaxWithLoss, Relu
+from ..common.layers import Affine, SoftmaxWithLoss, Relu, Embedding, SumLine
 import logging
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ PARAMETER_FILE_NAME = "parameters.npz"
 # 高速化(流石に遅いので一層目だけ特別扱いする？)
 @Model.register("neural_network")
 class Neural_Network(Model):
-    def __init__(self, num_features: int, num_classes:int, hidden_size:int=30, weight_init_std:float = 0.01, learning_rate: float =0.001, num_layers:int =2):
+    def __init__(self, num_features: int, num_classes: int, hidden_size: int = 30, weight_init_std: float = 0.01, learning_rate: float = 0.001, num_layers: int = 2):
         super().__init__(num_features, num_classes)
         self.hidden_size = hidden_size
         self.weight_init_std = weight_init_std
@@ -24,20 +24,18 @@ class Neural_Network(Model):
         self.num_layers = num_layers
         # 重みパラメータの初期化
         self.params = {}
-        self.params['W1'] = weight_init_std * np.random.randn(num_features, hidden_size)
-        self.params['b1'] = np.zeros(hidden_size)
-        for i in range(num_layers - 2):
-            self.params['W' + str(i+2)] = weight_init_std * np.random.randn(hidden_size, hidden_size)
-            self.params['b' + str(i+2)] = weight_init_std * np.random.randn(hidden_size)
-        self.params['W' + str(num_layers)] = weight_init_std * np.random.randn(hidden_size, num_classes)
-        self.params['b' + str(num_layers)] = np.zeros(num_classes)
+        self.params['E1'] = weight_init_std * np.random.randn(num_features + 1, hidden_size)
+        # integrate bias into weight
+        # self.params['b1'] = np.zeros(hidden_size)
+        self.params['W1'] = weight_init_std * np.random.randn(hidden_size, num_classes)
+        self.params['b1'] = np.zeros(num_classes)
 
         # 各層に何を置くかを決める
         self.layers = OrderedDict()
+        self.layers['Embedding'] = Embedding(self.params['E1'])
+        self.layers['SumLine'] = SumLine()
+        self.layers['Relu1'] = Relu()
         self.layers['Affine1'] = Affine(self.params['W1'], self.params['b1'])
-        for i in range(num_layers - 1):
-            self.layers['Relu' + str(i + 1)] = Relu()
-            self.layers['Affine' + str(i + 2)] = Affine(self.params['W' + str(i+2)], self.params['b' + str(i+2)])
         self.lastLayer = SoftmaxWithLoss()
 
         # 各層に何を入れるか決めたら自動で初期化して欲しい。。
@@ -50,33 +48,43 @@ class Neural_Network(Model):
         return x
 
     def transform2d(self, word_features, length, dtype='float64'):
-        x = np.zeros(shape=(len(word_features),length), dtype=dtype)
-        for index,fs in enumerate(word_features):
-            for feature_index in fs:
-                x[index][feature_index] = 1
+        x = np.zeros(shape=(len(word_features), length), dtype=dtype)
+        for index, fs in enumerate(word_features):
+            x[index][fs] = 1
         return x
 
-    def predict(self, word_features: List[List[int]]) -> List[int]:
-        # np.arrayを定義する
-        # forward関数でバッチ処理をする
-        # forward関数からnp.arrayを受け取る
-        # それをpredicted_tagsに変換する
-        x = self.transform2d(word_features, self._num_features)
-        y = self.forward(x)
-        predicted_tags = np.argmax(y, axis=1)
-        predicted_tags = predicted_tags.tolist()
+    def predict_batch(self, word_features: List[List[int]]) -> List[int]:
+        # for i in range(len(word_features)):
+        #     word_features[i].append(self._num_features)
+        # print(word_features)
+        # word_features = np.array(word_features, dtype='object')
+        # y = self.forward(word_features)
+        # return y
+        # forward関数の結果をまとめて返す
+        Y = np.empty((0, self.num_classes), dtype='float64')
+        for fs in word_features:
+            fs.append(self._num_features)
+            fs = np.array([fs])
+            y = self.forward(fs)
+            y = np.array([y])
+            Y = np.append(Y, y, axis=0)
+        return Y
 
-        return predicted_tags
+    def predict_single(self, fs: List[int]):
+        y = self.forward(fs)
+        return y
 
     def loss(self, x, t):
-        y = self.forward(x)
+        y = self.predict_single(x)
+        # ここまででyがsoftmaxをかける前: np.array(batch_size, class_num)
+        #  # tはnp.array(batch_size, class_num)のone-hotベクトルになってて欲しい
         return self.lastLayer.forward(y, t)
 
     def gradient(self, x, t):
-        #forward
+        # forward
         self.loss(x, t)
 
-        #backward
+        # backward
         dout = 1
         dout = self.lastLayer.backward(dout)
 
@@ -85,38 +93,38 @@ class Neural_Network(Model):
         for layer in layers:
             dout = layer.backward(dout)
         grads = {}
-        for i in range(self.num_layers):
-            grads['W' + str(i+1)], grads['b' + str(i+1)] = self.layers['Affine' + str(i+1)].dW, self.layers['Affine' + str(i+1)].db
-        # grads['W1'], grads['b1'] = self.layers['Affine1'].dW, self.layers['Affine1'].db
-        # grads['W2'], grads['b2'] = self.layers['Affine2'].dW, self.layers['Affine2'].db
+        grads['E1'] = self.layers['Embedding'].dW
+        grads['W1'] = self.layers['Affine1'].dW
+        grads['b1'] = self.layers['Affine1'].db
 
         return grads
 
     def update(self, word_features: List[List[int]], tags: List[int]) -> Dict:
-        predicted_labels = self.predict(word_features)
-        new_tags = []
-        for tag in tags:
-            new_tags.append([tag])
-        x = self.transform2d(word_features, self._num_features)
-        new_tags = self.transform2d(new_tags, self.num_classes, dtype='int32')
-        grads = self.gradient(x, new_tags)
-        for key in grads.keys():
-            self.params[key] -= self.learning_rate * grads[key]
+        tags_ohv = self.transform2d(tags, self.num_classes, dtype='int32')
+        predicted_labels = []
+        for index, fs in enumerate(word_features):
+            fs.append(self._num_features)
+            fs = np.array([fs])
+            y = self.predict_single(fs)
+            predicted_labels.append(y.argmax())
+            grads = self.gradient(fs, tags_ohv[index])
+            for key in grads.keys():
+                self.params[key] -= self.learning_rate * grads[key]
 
         return {"prediction": predicted_labels}
 
-    def save(self, save_directory:str):
+    def save(self, save_directory: str):
         np.savez(Path(save_directory)/ PARAMETER_FILE_NAME, **self.params)
-        # np.savez(Path(save_directory)/ PARAMETER_FILE_NAME, W1=self.params['W1'], b1 =self.params['b1'], W2=self.params['W2'], b2=self.params['b2'])
 
     @classmethod
     def load(cls, save_directory):
         parameters = np.load(Path(save_directory) / PARAMETER_FILE_NAME)
-        num_features, hidden_size = parameters['W1'].shape
-        num_classes = parameters['b2'].shape[1]
+        num_features, hidden_size = parameters['E1'].shape
+        num_features -= 1
+        num_classes = parameters['b1'].shape[1]
         model = Neural_Network(num_features, num_classes, hidden_size, weight_init_std=0.01)
-        for key in self.params.keys():
-            self.params[key] = parameters[key]
+        for key in model.params.keys():
+            model.params[key] = parameters[key]
         return model
     # モデルの変更に伴って書き換える必要あり。
     # OrderedDictをうまく使うのが良さそう？
