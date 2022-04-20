@@ -1,3 +1,4 @@
+from distutils.errors import PreprocessError
 from pathlib import Path
 from typing import Dict, List
 
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 PARAMETER_FILE_NAME = "parameters.npz"
 # need to be modified
 
+#型ヒントをかこう
 @Model.register("neural_network")
 class Neural_Network(Model):
     def __init__(self, num_features: int, num_classes: int, hidden_size: int = 30, weight_init_std: float = 0.01, learning_rate: float = 0.001, num_layers: int = 2):
@@ -53,16 +55,18 @@ class Neural_Network(Model):
             x[index][fs] = 1
         return x
 
-    def predict_batch(self, word_features: List[List[int]]) -> List[int]:
-        Y = self.forward(word_features)
+    def infer(self, processed_word_features: List[List[int]]) -> List[int]:
+        Y = self.forward(processed_word_features)
         return Y
 
-    def predict_single(self, fs: List[int]):
-        y = self.forward(fs)
-        return y
+    def predict(self, word_features: List[List[int]]) -> List[int]:
+        processed_word_features = self.preprocess(word_features)
+        infer_result = self.infer(processed_word_features)
+        predicted_labels = infer_result.argmax(axis=1).tolist()
+        return predicted_labels
 
     def loss(self, x, t):
-        y = self.predict_batch(x)
+        y = self.infer(x)
         # ここまででyがsoftmaxをかける前: np.array(batch_size, class_num)
         #  # tはnp.array(batch_size, class_num)のone-hotベクトルになってて欲しい
         return self.lastLayer.forward(y, t)
@@ -85,8 +89,7 @@ class Neural_Network(Model):
 
         return grads
 
-    def update(self, word_features: List[List[int]], tags: List[int]) -> Dict:
-        tags_ohv = self.transform2d(tags, self.num_classes, dtype='int32')
+    def preprocess(self, word_features):
         # 入力長を揃えるための前処理
         max_features = -1
         for i in range(len(word_features)):
@@ -95,11 +98,15 @@ class Neural_Network(Model):
         for i in range(len(word_features)):
             for j in range(max_features - len(word_features[i])):
                 word_features[i].append(self._num_features + 1)
-        word_features = np.array(word_features, dtype='int32')
-        pred_result = self.predict_batch(word_features)
-        predicted_labels = pred_result.argmax(axis=1).tolist()
+        word_features = np.array(word_features)
+        return word_features
 
-        grads = self.gradient(word_features, tags_ohv)
+    def update(self, word_features: List[List[int]], tags: List[int]) -> Dict:
+        tags_ohv = self.transform2d(tags, self.num_classes, dtype='int32')
+        processed_word_features = self.preprocess(word_features)
+        predicted_labels = self.predict(word_features)
+
+        grads = self.gradient(processed_word_features, tags_ohv)
         for key in grads.keys():
             self.params[key] -= self.learning_rate * grads[key]
         self.params['E1'][-1] = np.zeros(shape=(1, self.hidden_size), dtype='float')
@@ -107,7 +114,7 @@ class Neural_Network(Model):
         return {"prediction": predicted_labels}
 
     def save(self, save_directory: str):
-        np.savez(Path(save_directory)/ PARAMETER_FILE_NAME, **self.params)
+        np.savez(Path(save_directory) / PARAMETER_FILE_NAME, **self.params)
 
     @classmethod
     def load(cls, save_directory):
