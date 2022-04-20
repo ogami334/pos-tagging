@@ -1,5 +1,7 @@
 from pathlib import Path
 from typing import Dict, List
+
+from pyparsing import makeXMLTags
 import numpy as np
 from collections import OrderedDict
 import sys
@@ -12,8 +14,6 @@ logger = logging.getLogger(__name__)
 PARAMETER_FILE_NAME = "parameters.npz"
 # need to be modified
 
-# やること
-# 高速化(流石に遅いので一層目だけ特別扱いする？)
 @Model.register("neural_network")
 class Neural_Network(Model):
     def __init__(self, num_features: int, num_classes: int, hidden_size: int = 30, weight_init_std: float = 0.01, learning_rate: float = 0.001, num_layers: int = 2):
@@ -24,9 +24,9 @@ class Neural_Network(Model):
         self.num_layers = num_layers
         # 重みパラメータの初期化
         self.params = {}
-        self.params['E1'] = weight_init_std * np.random.randn(num_features + 1, hidden_size)
+        self.params['E1'] = weight_init_std * np.random.randn(num_features + 2, hidden_size)
+        self.params['E1'][-1] = np.zeros(shape=(1, hidden_size), dtype='float')
         # integrate bias into weight
-        # self.params['b1'] = np.zeros(hidden_size)
         self.params['W1'] = weight_init_std * np.random.randn(hidden_size, num_classes)
         self.params['b1'] = np.zeros(num_classes)
 
@@ -54,20 +54,7 @@ class Neural_Network(Model):
         return x
 
     def predict_batch(self, word_features: List[List[int]]) -> List[int]:
-        # for i in range(len(word_features)):
-        #     word_features[i].append(self._num_features)
-        # print(word_features)
-        # word_features = np.array(word_features, dtype='object')
-        # y = self.forward(word_features)
-        # return y
-        # forward関数の結果をまとめて返す
-        Y = np.empty((0, self.num_classes), dtype='float64')
-        for fs in word_features:
-            fs.append(self._num_features)
-            fs = np.array([fs])
-            y = self.forward(fs)
-            y = np.array([y])
-            Y = np.append(Y, y, axis=0)
+        Y = self.forward(word_features)
         return Y
 
     def predict_single(self, fs: List[int]):
@@ -75,7 +62,7 @@ class Neural_Network(Model):
         return y
 
     def loss(self, x, t):
-        y = self.predict_single(x)
+        y = self.predict_batch(x)
         # ここまででyがsoftmaxをかける前: np.array(batch_size, class_num)
         #  # tはnp.array(batch_size, class_num)のone-hotベクトルになってて欲しい
         return self.lastLayer.forward(y, t)
@@ -87,7 +74,6 @@ class Neural_Network(Model):
         # backward
         dout = 1
         dout = self.lastLayer.backward(dout)
-
         layers = list(self.layers.values())
         layers.reverse()
         for layer in layers:
@@ -101,15 +87,22 @@ class Neural_Network(Model):
 
     def update(self, word_features: List[List[int]], tags: List[int]) -> Dict:
         tags_ohv = self.transform2d(tags, self.num_classes, dtype='int32')
-        predicted_labels = []
-        for index, fs in enumerate(word_features):
-            fs.append(self._num_features)
-            fs = np.array([fs])
-            y = self.predict_single(fs)
-            predicted_labels.append(y.argmax())
-            grads = self.gradient(fs, tags_ohv[index])
-            for key in grads.keys():
-                self.params[key] -= self.learning_rate * grads[key]
+        # 入力長を揃えるための前処理
+        max_features = -1
+        for i in range(len(word_features)):
+            word_features[i].append(self._num_features)
+            max_features = max(max_features, len(word_features[i]))
+        for i in range(len(word_features)):
+            for j in range(max_features - len(word_features[i])):
+                word_features[i].append(self._num_features + 1)
+        word_features = np.array(word_features, dtype='int32')
+        pred_result = self.predict_batch(word_features)
+        predicted_labels = pred_result.argmax(axis=1).tolist()
+
+        grads = self.gradient(word_features, tags_ohv)
+        for key in grads.keys():
+            self.params[key] -= self.learning_rate * grads[key]
+        self.params['E1'][-1] = np.zeros(shape=(1, self.hidden_size), dtype='float')
 
         return {"prediction": predicted_labels}
 
@@ -120,7 +113,7 @@ class Neural_Network(Model):
     def load(cls, save_directory):
         parameters = np.load(Path(save_directory) / PARAMETER_FILE_NAME)
         num_features, hidden_size = parameters['E1'].shape
-        num_features -= 1
+        num_features -= 2
         num_classes = parameters['b1'].shape[1]
         model = Neural_Network(num_features, num_classes, hidden_size, weight_init_std=0.01)
         for key in model.params.keys():
