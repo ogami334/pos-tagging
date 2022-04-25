@@ -10,12 +10,16 @@ from .models import Model
 logger = logging.getLogger(__name__)
 
 
+
+
 class Trainer(FromConfig):
     def __init__(self, num_epochs: int, patience: int):
         self.num_epochs = num_epochs
         self.patience = patience
+        self.inv_dict = {0: 'NN', 1: 'IN', 2: 'NNP', 3: 'DT', 4: 'JJ', 5: 'NNS', 6: ',', 7: '.', 8: 'CD', 9: 'RB', 10: 'VBD', 11: 'VB', 12: 'CC', 13: 'TO', 14: 'VBZ', 15: 'VBN', 16: 'PRP', 17: 'VBG', 18: 'VBP', 19: 'MD', 20: 'POS', 21: 'PRP$', 22: '$', 23: '``', 24: "''", 25: ':', 26: 'WDT', 27: 'JJR', 28: 'RP', 29: 'NNPS', 30: 'WP', 31: 'WRB', 32: 'JJS', 33: 'RBR', 34: '-RRB-', 35: '-LRB-', 36: 'EX', 37: 'RBS', 38: 'PDT', 39: 'FW', 40: 'WP$', 41: '#', 42: 'UH', 43: 'SYM', 44: 'LS'}
 
     def _training_loop(self, model: Model, training_data: List[Dict]) -> float:
+        model.set_train_mode()
         total_num_correct_predictions = 0
         num_prediction_points = sum(len(d["tag_ids"]) for d in training_data)
         for data in tqdm.tqdm(training_data):
@@ -25,11 +29,22 @@ class Trainer(FromConfig):
         return training_accuracy
 
     def _validation_loop(self, model: Model, validation_data: List[Dict]) -> float:
+        model.set_eval_mode()
         num_correct_predictions = 0
         num_prediction_points = sum(len(d["tag_ids"]) for d in validation_data)
         for data in tqdm.tqdm(validation_data):
             model_prediction = model.predict(data["feature_ids"])
-            num_correct_predictions += sum(i == j for i, j in zip(model_prediction, data["tag_ids"]))
+            for index, t in enumerate(zip(model_prediction, data["tag_ids"])):
+                i, j = t
+                if i!= j:
+                    # print("word:{}".format(data["words"][index]))
+                    # print(f"predicted:{self.inv_dict[i]}")
+                    # print("label:{}".format(data["tags"][index]))
+                    # print()
+                    pass
+                else:
+                    num_correct_predictions += 1
+            # num_correct_predictions += sum(i == j for i, j in zip(model_prediction, data["tag_ids"]))
         validation_accuracy = num_correct_predictions / num_prediction_points
         return validation_accuracy
 

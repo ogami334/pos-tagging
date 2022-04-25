@@ -26,3 +26,18 @@ class Model(Registrable):
     @classmethod
     def load(cls, directory: str) -> "Model":
         raise NotImplementedError()
+
+    def set_train_mode(self):
+        """
+        Set the model to training mode.
+        A typical procedure to do here is to enable dropout in neural network.
+        """
+        pass
+
+    def set_eval_mode(self):
+        """
+        Set the model to training mode.
+        A typical procedure to do here is to disable dropout in neural network,
+        or average weights in averaged multi class perceptron.
+        """
+        pass
