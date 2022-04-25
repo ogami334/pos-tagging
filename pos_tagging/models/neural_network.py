@@ -9,6 +9,7 @@ import sys
 from .model import Model
 # sys.path.append("../layers")
 from ..common.layers import Affine, SoftmaxWithLoss, Relu, Embedding, SumLine
+from ..common.optimizer import SGD, Adam
 import logging
 logger = logging.getLogger(__name__)
 
@@ -24,12 +25,18 @@ class Neural_Network(Model):
         self.weight_init_std = weight_init_std
         self.learning_rate = learning_rate
         self.num_layers = num_layers
+        self.optimizer = SGD(lr=learning_rate)
+        # self.optimizer = Adam(lr=learning_rate)
         # 重みパラメータの初期化
         self.params = {}
-        self.params['E1'] = weight_init_std * np.random.randn(num_features + 2, hidden_size)
-        self.params['E1'][-1] = np.zeros(shape=(1, hidden_size), dtype='float')
-        # integrate bias into weight
-        self.params['W1'] = weight_init_std * np.random.randn(hidden_size, num_classes)
+
+        # Heの初期値
+        self.params['E1'] = np.sqrt(2 / num_features) * np.random.randn(num_features + 2, hidden_size)
+        self.params['E1'][-2] = np.zeros(shape=(1, hidden_size), dtype='float') #　バイアスを0にするのと等価
+        self.params['E1'][-1] = np.zeros(shape=(1, hidden_size), dtype='float') # 可変長を固定長にするための行 forwardがよばれる前に0にする
+
+        # Heの初期値
+        self.params['W1'] = np.sqrt(2 / hidden_size) * np.random.randn(hidden_size, num_classes)
         self.params['b1'] = np.zeros(num_classes)
 
         # 各層に何を置くかを決める
@@ -45,8 +52,11 @@ class Neural_Network(Model):
 
     def forward(self, x):
         # xというnp.ndarray(batch_size, num_features)を受け取り、ニューラルネットワークにかけてnp.ndarray(batch_size, num_classes)を返す
+        # print(x.shape)
         for key, layer in self.layers.items():
             x = layer.forward(x)
+            # print(x.shape)
+        # print("forward finished")
         return x
 
     def transform2d(self, word_features, length, dtype='float64'):
@@ -80,13 +90,15 @@ class Neural_Network(Model):
         dout = self.lastLayer.backward(dout)
         layers = list(self.layers.values())
         layers.reverse()
+        # print(dout.shape)
         for layer in layers:
             dout = layer.backward(dout)
+            # print(dout.shape)
+        # print("backward finished")
         grads = {}
         grads['E1'] = self.layers['Embedding'].dW
         grads['W1'] = self.layers['Affine1'].dW
         grads['b1'] = self.layers['Affine1'].db
-
         return grads
 
     def preprocess(self, word_features):
@@ -107,8 +119,9 @@ class Neural_Network(Model):
         predicted_labels = self.predict(word_features)
 
         grads = self.gradient(processed_word_features, tags_ohv)
-        for key in grads.keys():
-            self.params[key] -= self.learning_rate * grads[key]
+        self.optimizer.update(params=self.params, grads=grads)
+        # for key in grads.keys():
+        #     self.params[key] -= self.learning_rate * grads[key]
         self.params['E1'][-1] = np.zeros(shape=(1, self.hidden_size), dtype='float')
 
         return {"prediction": predicted_labels}
@@ -121,9 +134,10 @@ class Neural_Network(Model):
         parameters = np.load(Path(save_directory) / PARAMETER_FILE_NAME)
         num_features, hidden_size = parameters['E1'].shape
         num_features -= 2
-        num_classes = parameters['b1'].shape[1]
+        num_classes = parameters['b1'].shape[0]
         model = Neural_Network(num_features, num_classes, hidden_size, weight_init_std=0.01)
         for key in model.params.keys():
+            assert model.params[key].shape == parameters[key].shape
             model.params[key] = parameters[key]
         return model
     # モデルの変更に伴って書き換える必要あり。
