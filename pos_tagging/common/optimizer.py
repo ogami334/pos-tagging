@@ -5,7 +5,7 @@ class SGD:
         self.lr = lr
 
     def update(self, params, grads):
-        for key in param.keys():
+        for key in params.keys():
             params[key] -= self.lr * grads[key]
 
 class Momentum:
@@ -76,4 +76,4 @@ class Adam:
         for key in params.keys():
             self.m[key] += (1 - self.beta1) * (grads[key] - self.m[key])
             self.v[key] += (1 - self.beta2) * (grads[key]**2 - self.v[key])
-            params[key] -= lr_t * self.m[key] / (np.sqrt(v.key) + 1e-7)
+            params[key] -= lr_t * self.m[key] / (np.sqrt(self.v[key]) + 1e-7)
